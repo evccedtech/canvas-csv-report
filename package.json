@@ -1,0 +1,17 @@
+{
+  "name": "canvas-csv-report",
+  "description": "Simple Canvas administrative reports from the command line",
+  "license": "MIT",
+  "author": {
+    "name": "John Melson",
+    "email": "jmelson@everettcc.edu"
+  },
+  "version": "0.1.0",
+  "dependencies": {
+    "babyparse": "^0.4.6",
+    "d3-collection": "^1.0.2",
+    "fs": "0.0.1-security",
+    "request": "^2.79.0",
+    "underscore": "^1.8.3"
+  }
+}
