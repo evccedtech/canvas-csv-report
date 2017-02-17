@@ -1,0 +1,14 @@
+{
+    "canvas": {
+        "account": "CANVAS ID FOR YOUR TOP-LEVEL ACCOUNT",
+        "instance": "YOUR CANVAS INSTANCE URL",
+        "perPage": 100,
+        "requestInterval": 100,
+        "token": "YOUR SUPER-SECRET API TOKEN"
+    },
+    "reportFolder": "./reports/",
+    "reportOptions": ["homepage", "syllabus", "published", "enrollment"],
+    "reportPctPrecision": 3,
+    "reportTabs": ["Blackboard Collaborate"],
+    "reportTypes": ["courses", "departments", "divisions"]
+}
