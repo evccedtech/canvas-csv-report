@@ -20,7 +20,7 @@ In the directory where you have cloned the repository, there should be two files
 In `config.json`, you'll need to update several fields.
 
 #### Instance
-Replace the text that reads "YOUR CANVAS INSTANCE" with the URL you use to access your institution's Canvas instance (for example, `https://mycollege.instructure.com').
+Replace the text that reads "YOUR CANVAS INSTANCE" with the URL you use to access your institution's Canvas instance (for example, `https://mycollege.instructure.com`).
 
 #### API token
 Replace the text that reads "YOUR SUPER-SECRET API TOKEN" with your own Canvas API token. This token should be from an account with Canvas admin privileges. If you don't have a Canvas API token, consult the Canvas documentation to find out how to create one.
