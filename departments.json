@@ -1,0 +1,15 @@
+{
+  "departments": [
+    {
+      "id": 0, 
+      "code": "", 
+      "division": ""
+    }
+  ],
+  "divisions": [
+    {
+      "id": 0,
+      "code": ""
+    }
+  ]
+}
