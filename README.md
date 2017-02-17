@@ -60,4 +60,6 @@ After you're done with the configuration, you can generate a set of reports by i
 
 `node report [TERM]`
 
-where TERM is a representation of the academic quarter you want to report on. This consists of a quarter abbreviation (W = Winter, S = Spring, SU = Summer, F = Fall) and a two-digit year. For example, Winter 2017 would be represented as 'W17'
+where TERM is a representation of the academic quarter you want to report on. This consists of a quarter abbreviation (W = Winter, S = Spring, SU = Summer, F = Fall) and a two-digit year. For example, Winter 2017 would be represented as 'W17'.
+
+Because a report potentially makes a very large number of calls to the Canvas API (depending on the number of courses in the specified academic term), it can take several minutes to generate a report. The report script will periodically provide an approximation of the time remaining.
