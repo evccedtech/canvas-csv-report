@@ -6,9 +6,10 @@
         "requestInterval": 100,
         "token": "YOUR SUPER-SECRET API TOKEN"
     },
+    "reportEnrollmentMin": 5,
     "reportFolder": "./reports/",
     "reportOptions": ["homepage", "syllabus", "published", "enrollment"],
     "reportPctPrecision": 3,
-    "reportTabs": ["Blackboard Collaborate"],
+    "reportTabs": [],
     "reportTypes": ["courses", "departments", "divisions"]
 }
