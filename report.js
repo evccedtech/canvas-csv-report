@@ -137,7 +137,7 @@ function countByDept(courses) {
             	term: term,
             	division: division.key,
             	program: dept.key,
-            	course_count: dept.values.length
+            	course_count: _.filter(dept.values, function(val) { return val.enrollment >= config.reportEnrollmentMin; }).length
         	};
         	
         	for (var i = 0, len = dept.values.length; i < len; i++) {
@@ -146,26 +146,30 @@ function countByDept(courses) {
                 	
                 	var pctLabel = option + '_pct';
                 	
-                	if (rollup[option]) {
-                    	
-                        rollup[option] += dept.values[i][option];
-                    	
-                	} else {
-                    	
-                    	rollup[option] = dept.values[i][option];
-                    	
-                	}
-                	
-                	if (option === 'published' || option === 'homepage' || option === 'syllabus') {
-                    	
-                    	if (rollup[option] === 0) {
+                	if (dept.values[i].enrollment && dept.values[i].enrollment >= config.reportEnrollmentMin) {
+                    
+                    	if (rollup[option]) {
                         	
-                        	rollup[pctLabel] = 0;
+                            rollup[option] += dept.values[i][option];
                         	
                     	} else {
+                        	
+                        	rollup[option] = dept.values[i][option];
+                        	
+                    	}
                     	
-                        	rollup[pctLabel] = getPercent(rollup[option],  rollup.course_count);
-                        }
+                    	if (option === 'published' || option === 'homepage' || option === 'syllabus') {
+                        	
+                        	if (rollup[option] === 0) {
+                            	
+                            	rollup[pctLabel] = 0;
+                            	
+                        	} else {
+                        	
+                            	rollup[pctLabel] = getPercent(rollup[option],  rollup.course_count);
+                            }
+                        	
+                    	}
                     	
                 	}
                 	
@@ -176,25 +180,29 @@ function countByDept(courses) {
                 	var label = getTabLabel(option);
                 	var pctLabel = label + '_pct';
                 	
-                	if (rollup[label]) {
-                    	
-                    	rollup[label] += dept.values[i][label];
-                    	
-                	} else {
-                    	
-                    	rollup[label] = dept.values[i][label];
-                    	
-                	}
+                	if (dept.values[i].enrollment && dept.values[i].enrollment >= config.reportEnrollmentMin) {
                 	
-                	if (rollup[label] === 0) {
-
-                    	rollup[pctLabel] = 0;
-
-                	} else {
+                    	if (rollup[label]) {
+                        	
+                        	rollup[label] += dept.values[i][label];
+                        	
+                    	} else {
+                        	
+                        	rollup[label] = dept.values[i][label];
+                        	
+                    	}
                     	
-                    	rollup[pctLabel] = getPercent(rollup[label],  rollup.course_count);
+                    	if (rollup[label] === 0) {
+    
+                        	rollup[pctLabel] = 0;
+    
+                    	} else {
+                        	
+                        	rollup[pctLabel] = getPercent(rollup[label],  rollup.course_count);
+                        	
+                    	}
                     	
-                	}
+                    }
                 	
             	});
             	
@@ -295,6 +303,119 @@ function countByDiv(courses) {
             }
         	
     	});
+        
+        output.push(rollup);
+        
+    });
+    
+    return output;
+    
+}
+
+/**
+ * @function countBySubAccount
+ * Creates a sub-account rollup for courses. Used only when a department
+ * list hasn't been provided in the departments.json config file.
+ * @param {object} courses - the collection of course objects to act on
+ * @returns {object} - the sub-account sorted course information
+ */
+ 
+function countBySubAccount(courses) {
+    
+    var accountNest = collection.nest()
+        .key(function(d) { return d.account_id; })
+        .entries(courses);
+        
+    var division;
+    
+    var output = [];
+    
+    _.each(accountNest, function(account) {
+        
+        var rollup = {
+            account_id: account.key,
+            term: term,
+            course_count: _.filter(account.values, function(val) { return val.enrollment >= config.reportEnrollmentMin; }).length
+        };
+        
+        if (depts.divisions) {
+            
+            division = _.where(depts.divisions, {id : parseInt(account.key)});
+            
+            if (division.length) {
+                rollup.division = division[0].code;
+            } else {
+                rollup.division = '';
+            }
+            
+        }
+        
+        for (var i = 0, len = account.values.length; i < len; i++) {
+            
+            _.each(config.reportOptions, function(option) {
+                
+                var pctLabel = option + '_pct';
+                
+                if (account.values[i].enrollment && account.values[i].enrollment >= config.reportEnrollmentMin) {
+                    
+                    if (rollup[option]) {
+                        
+                        rollup[option] += account.values[i][option];
+                        
+                    } else {
+                        
+                        rollup[option] = account.values[i][option];
+                        
+                    }
+                    
+                    if (option === 'published' || option === 'homepage' || option === 'syllabus') {
+                        
+                        if (rollup[option] === 0) {
+
+                            rollup[pctLabel] = 0;
+
+                        } else {
+                            
+                            rollup[pctLabel] = getPercent(rollup[option], rollup.course_count);
+                            
+                        }
+                        
+                    }
+                    
+                }
+                
+            });
+            
+            _.each(config.reportTabs, function(option) {
+               
+                var label = getTabLabel(option);
+                var pctLabel = label + '_pct';
+                
+                if (account.value[i].enrollment && account.values[i].enrollment >= config.reportEnrollmentMin) {
+                    
+                    if (rollup[label]) {
+                        
+                        rollup[label] += dept.values[i][label];
+                        
+                    } else {
+                        
+                        rollup[label] = dept.values[i][label];
+                        
+                    }
+                    
+                    if (rollup[label] === 0) {
+                        
+                        rollup[pctLabel] = 0;
+                        
+                    } else {
+                        
+                        rollup[pctLabel] = getPercent(rollup[label], rollup.course_count);
+                        
+                    }
+                }
+                
+            });
+        }
         
         output.push(rollup);
         
@@ -653,7 +774,16 @@ function processData(type, courses) {
         
     } else if (type === 'departments') {
         
-        return sortCourses(countByDept(courses));
+        if (depts.departments) {
+                    
+            return sortCourses(countByDept(courses));
+            
+        } else {
+            
+            console.log('No department list!');
+            
+            return sortCourses(countBySubAccount(courses));
+        }
         
     } else if (type === 'divisions') {
         
@@ -679,7 +809,16 @@ function setCsvFields(type) {
     
     } else if (type === 'departments') {
         
-        fields.push('term', 'division', 'program', 'course_count');
+        if (depts.departments) {
+
+            fields.push('term', 'division', 'program', 'course_count');
+            
+        } else {
+         
+            fields.push('term', 'account_id', 'division', 'course_count');
+            
+        }
+
 
     } else if (type === 'divisions') {
         
@@ -730,7 +869,11 @@ function setCsvFields(type) {
  */
 function sortCourses(courses) { 
     
-    return _.sortBy(_.sortBy(courses, 'program'), 'division');
+    if (depts.departments) {
+        return _.sortBy(_.sortBy(courses, 'program'), 'division');   
+    } else {
+        return _.sortBy(_.sortBy(courses, 'account_id'));
+    }
     
 }
 
