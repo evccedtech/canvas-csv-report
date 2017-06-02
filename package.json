@@ -1,17 +1,20 @@
 {
-  "name": "canvas-csv-report",
-  "description": "Simple Canvas administrative reports from the command line",
-  "license": "MIT",
-  "author": {
-    "name": "John Melson",
-    "email": "jmelson@everettcc.edu"
-  },
-  "version": "0.1.0",
-  "dependencies": {
-    "babyparse": "^0.4.6",
-    "d3-collection": "^1.0.2",
-    "fs": "0.0.1-security",
-    "request": "^2.79.0",
-    "underscore": "^1.8.3"
-  }
+    "canvas": {
+        "account": "YOUR TOP-LEVEL CANVAS ACCOUNT ID",
+        "instance": "YOUR CANVAS INSTANCE URL",
+        "perPage": 100,
+        "subaccountRecursion": true,
+        "token": "YOUR CANVAS API TOKEN"
+    },
+    "institution": "YOUR INSTITUTION'S NAME OR ACRONYM",
+    "report": {
+        "datestamp": true,
+        "dir": "./reports/",
+        "enrollmentMin": 3,
+        "options": ["enrollment", "published", "homepage", "syllabus"],
+        "output": ["courses", "subaccounts", "institution"],
+        "pctPrecision": 3,
+        "tabs": []
+    },
+    "requestInterval": 100
 }
