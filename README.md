@@ -72,33 +72,33 @@ Reports are saved as standard CSV files that you can open in import into Excel, 
 
 #### Course-level report
 This report lists every course for the selected quarter. It contains the following fields by default:
-- *account_id*: the Canvas id of the sub-account to which the course belongs
-- *account_name*: the name of the sub-account to which the course belongs (Note: courses that aren't in a sub-account will show the institution's name instead)
-- *term*: the term abbreviation (e.g. 'S13', 'W14')
-- *id*: the Canvas course id
-- *course_code*: the short name associated with the course
-- *name*: the full name of the course
-- *enrollment*: the number of students enrolled in the course (Note: enrollment figures provided by Canvas may differ from an institution's official enrollment information for a course -- for example, if students have been added/removed manually)
-- *published*: 1 if the course has been published, 0 if it is unpublished
-- *homepage*: 1 if the course has set a wiki page as the home page, 0 if not
-- *syllabus*: 1 if the course syllabus page has content other than the assignment information Canvas automatically displays, 0 if not
+- **account_id**: the Canvas id of the sub-account to which the course belongs
+- **account_name**: the name of the sub-account to which the course belongs (Note: courses that aren't in a sub-account will show the institution's name instead)
+- **term**: the term abbreviation (e.g. 'S13', 'W14')
+- **id**: the Canvas course id
+- **course_code**: the short name associated with the course
+- **name**: the full name of the course
+- **enrollment**: the number of students enrolled in the course (Note: enrollment figures provided by Canvas may differ from an institution's official enrollment information for a course -- for example, if students have been added/removed manually)
+- **published**: 1 if the course has been published, 0 if it is unpublished
+- **homepage**: 1 if the course has set a wiki page as the home page, 0 if not
+- **syllabus**: 1 if the course syllabus page has content other than the assignment information Canvas automatically displays, 0 if not
 
 If navigation tabs have been specified in the `config.json` file, corresponding fields will be included as well. For all navigation tabs a value of 1 indicates that the tab is active in the course, while a value of 0 indicates it not.
 
 ### Sub-account report
 This report lists aggregated information about the courses in each sub-account. It contains the following fields by default:
-- *term*: the term abbreviation (e.g. 'S13, 'W14')
-- *account_id*: the Canvas id of the sub-account
-- *account_name*: the name of the sub-account (Note: courses that aren't in a sub-account will show the institution's name instead)
-- *course_count*: the total number of courses in the sub-account
-- *course_count_enrollment_min*: the number of courses in the sub-account where enrollment is greater than or equal to the value assigned to the `enrollmentMin` property in the `config.json` file. By default this number is 3, meaning that only courses with 3 or more students will be counted here
-- *enrollment*: the combined enrollment for all the courses in this sub-account 
-- *published*: the number of courses above the enrollment minimum that have been published
-- *published_pct*: the percent of courses above the enrollment minimum that have been published
-- *homepage*: the number of published that have set a wiki page as the home page
-- *homepage_pct*: the percent of published courses that have set a home page
-- *syllabus*: the number of published courses that have syllabus page content other than the automatica assignment information
-- *syllabus_pct*: the percent of published courses that have syllabus page content
+- **term**: the term abbreviation (e.g. 'S13, 'W14')
+- **account_id**: the Canvas id of the sub-account
+- **account_name**: the name of the sub-account (Note: courses that aren't in a sub-account will show the institution's name instead)
+- **course_count**: the total number of courses in the sub-account
+- **course_count_enrollment_min**: the number of courses in the sub-account where enrollment is greater than or equal to the value assigned to the `enrollmentMin` property in the `config.json` file. By default this number is 3, meaning that only courses with 3 or more students will be counted here
+- **enrollment**: the combined enrollment for all the courses in this sub-account 
+- **published**: the number of courses above the enrollment minimum that have been published
+- **published_pct**: the percent of courses above the enrollment minimum that have been published
+- **homepage**: the number of published that have set a wiki page as the home page
+- **homepage_pct**: the percent of published courses that have set a home page
+- **syllabus**: the number of published courses that have syllabus page content other than the automatica assignment information
+- **syllabus_pct**: the percent of published courses that have syllabus page content
 
 If navigation tabs have been specified, corresponding fields will be included as well. Like the homepage and syllabus fields described above, these will indicate the total number and percent of published courses in a sub-account that have enabled the tab in question.
 
