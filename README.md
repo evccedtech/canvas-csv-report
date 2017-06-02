@@ -104,3 +104,8 @@ If navigation tabs have been specified, corresponding fields will be included as
 
 ### Institution report
 This report lists aggregated information about the courses in each first-level sub-account for an institution (that is, the sub-accounts that are the immediate children of the institution's Canvas account). This report is only created when the `subaccountRecursion` option is set to `true` and there are multiple levels of nested sub-accounts at the institution. The fields included in this report are the same as those included in the sub-account report described above.
+
+### A note about missing values in reports
+Sub-account and institution reports will sometimes contain missing values for some fields (typically those that show the percent of published courses that use a specific feature). While this might look like a mistake, there is logic behind the decision to omit values in these cases. This occurs when there are no courses that satisfy a particular criterion. It would be misleading in these cases to indicate that 0% percent of published courses satisfy the criterion, since there are no courses that do and it's impossible to calculate a percentage of something that doesn't exist. Consequently, no value is provided.
+
+
