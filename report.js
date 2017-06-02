@@ -3,20 +3,25 @@ var _ = require('underscore');
 var collection = require('d3-collection');
 var config = require('./config.json');
 var csv = require('babyparse');
-var depts = require('./departments.json');
-var request = require('request');
 var fs = require('fs');
+var request = require('request');
 
+var accounts = [];
 var courses = [];
 var requestSequence = ['termId', 'courses'];
-var reportTerm;
 var term = null;
 var termId = null;
+var timestamp = '';
 var year = null;
 
 // Command-line arguments
 var cliArgs = process.argv.slice(2);
 
+if (config.report.datestamp) {
+    
+    timestamp = '_' + getTimestamp();
+    
+}
 
 /**
  * @function canvasApiRequest
@@ -71,7 +76,6 @@ function canvasApiRequest(url, callback) {
         } else if (response.statusCode === 403) {
             writeMessage('WARNING:\nCanvas API throttling may be occurring: ' + response.headers['x-rate-limit-remaining']);
         }
-
         
     });
     
@@ -109,297 +113,97 @@ function checkArgs(cliArgs) {
         
         writeMessage('Whoa! Only one argument required: an academic quarter (i.e. "F16", "SU14", "W15")');
     }
-    
-    
+        
 }
 
-
 /**
- * @function countByDept
- * Creates a department-level rollup for courses
+ * @function countByInstitution
+ * Creates an institutional rollup for subaccounts. 
  * @param {object} courses - the collection of course objects to act on
- * @returns {object} - the department-level course information
+ * @returns {object} - the top-level subaccount information for the institution
  */
-function countByDept(courses) {
+function countByInstitution(courses) {
     
-    var deptNest = collection.nest()
-        .key(function(d) { return d.division; })
-		.key(function(d) { return d.program; })
-		.entries(courses);
-
+    var nest = collection.nest()
+        .key(function(d) { return d.parent_account_id; })
+        .entries(accounts);
+    
     var output = [];
-		
-	_.each(deptNest, function(division) {
-    	
-    	_.each(division.values, function(dept) {
-        	
-        	var rollup = {
-            	term: term,
-            	division: division.key,
-            	program: dept.key,
-            	course_count: _.filter(dept.values, function(val) { return val.enrollment >= config.reportEnrollmentMin; }).length
-        	};
-        	
-        	for (var i = 0, len = dept.values.length; i < len; i++) {
-            	
-            	_.each(config.reportOptions, function(option) {
-                	
-                	var pctLabel = option + '_pct';
-                	
-                	if (dept.values[i].enrollment && dept.values[i].enrollment >= config.reportEnrollmentMin) {
-                    
-                    	if (rollup[option]) {
-                        	
-                            rollup[option] += dept.values[i][option];
-                        	
-                    	} else {
-                        	
-                        	rollup[option] = dept.values[i][option];
-                        	
-                    	}
-                    	
-                    	if (option === 'published' || option === 'homepage' || option === 'syllabus') {
-                        	
-                        	if (rollup[option] === 0) {
-                            	
-                            	rollup[pctLabel] = 0;
-                            	
-                        	} else {
-                        	
-                            	rollup[pctLabel] = getPercent(rollup[option],  rollup.course_count);
-                            }
-                        	
-                    	}
-                    	
-                	}
-                	
-            	});
-            	
-            	_.each(config.reportTabs, function(option) {
-                	
-                	var label = getTabLabel(option);
-                	var pctLabel = label + '_pct';
-                	
-                	if (dept.values[i].enrollment && dept.values[i].enrollment >= config.reportEnrollmentMin) {
-                	
-                    	if (rollup[label]) {
-                        	
-                        	rollup[label] += dept.values[i][label];
-                        	
-                    	} else {
-                        	
-                        	rollup[label] = dept.values[i][label];
-                        	
-                    	}
-                    	
-                    	if (rollup[label] === 0) {
-    
-                        	rollup[pctLabel] = 0;
-    
-                    	} else {
-                        	
-                        	rollup[pctLabel] = getPercent(rollup[label],  rollup.course_count);
-                        	
-                    	}
-                    	
-                    }
-                	
-            	});
-            	
-        	}
-        	
-        	output.push(rollup);
-        	
-    	});
         
-	});
-	
-	return output;
-
-}
-
-
-/**
- * @function countByDiv
- * Creates division-level rollup for courses
- * @param {object} courses - the collection of course objects to act on
- * @returns {object} - the division-level course information
- */
-function countByDiv(courses) {
-    
-    // I just like the d3 way of doing this
-    var divNest = collection.nest()
-        .key(function(d) { return d.division})
-        .entries(courses);
-        
-    var output = [];
-    
-    // For each division, calculate rollup values
-    _.each(divNest, function(division) {
-        
-        var rollup = {
-            term: term,
-            division: division.key,
-            course_count: division.values.length
-        };
-        
-        _.each(config.reportOptions, function(option) {
-            
-            var pctLabel = option + '_pct';
-            
-            for (var i = 0, len = division.values.length; i < len; i++) {
-                
-                if (rollup[option]) {
-                    rollup[option] += division.values[i][option];
-                } else {
-                    rollup[option] = division.values[i][option];
-                }
-                
-            }
-        	
-            if (option === 'published' || option === 'homepage' || option === 'syllabus') {
-            	
-            	if (rollup[option] === 0) {
-                	
-                	rollup[pctLabel] = 0;
-                	
-            	} else {
-            	
-                    rollup[pctLabel] = getPercent(rollup[option],  rollup.course_count);
-                    
-                }
-            	
-            }
-
-    	});
-    	
-    	_.each(config.reportTabs, function(option) {
-        	
-        	var label = getTabLabel(option);
-        	var pctLabel = label + '_pct';
-        	
-        	for (var i = 0, len = division.values.length; i < len; i++) {
-        	
-            	if (rollup[label]) {
-                	
-                	rollup[label] += division.values[i][label];
-                	
-            	} else {
-                	
-                	rollup[label] = division.values[i][label];
-                	
-            	}
-            	
-            	if (rollup[label] === 0) {
-                	
-                	rollup[pctLabel] = 0;
-                	
-            	} else {
-                	
-                	rollup[pctLabel] = getPercent(rollup[label], rollup.course_count);
-                	
-            	}
-            	
-            }
-        	
-    	});
-        
-        output.push(rollup);
-        
+    var subAccountNest = _.reject(nest, function(val) {
+        return val.key === config.canvas.account;
     });
     
-    return output;
-    
-}
-
-/**
- * @function countBySubAccount
- * Creates a sub-account rollup for courses. Used only when a department
- * list hasn't been provided in the departments.json config file.
- * @param {object} courses - the collection of course objects to act on
- * @returns {object} - the sub-account sorted course information
- */
- 
-function countBySubAccount(courses) {
-    
-    var accountNest = collection.nest()
-        .key(function(d) { return d.account_id; })
-        .entries(courses);
-        
-    var division;
-    
-    var output = [];
-    
-    _.each(accountNest, function(account) {
+    _.each(subAccountNest, function(sub) {  // equivalent to division
         
         var rollup = {
-            account_id: account.key,
             term: term,
-            course_count: _.filter(account.values, function(val) { return val.enrollment >= config.reportEnrollmentMin; }).length
+            account_id: sub.key,
+            account_name: getAccountName(parseInt(sub.key)),
+            course_count: 0,
+            course_count_enrollment_min: 0
         };
         
-        if (depts.divisions) {
+        _.each(sub.values, function(subsub) {  // equivalent to department/program
+           
+            var subsubCourses = _.where(courses, {account_id: subsub.id});
             
-            division = _.where(depts.divisions, {id : parseInt(account.key)});
+            rollup.course_count += subsubCourses.length;
             
-            if (division.length) {
-                rollup.division = division[0].code;
-            } else {
-                rollup.division = '';
-            }
+            rollup.course_count_enrollment_min += _.filter(subsubCourses, function(val) {
+                return val.enrollment >= config.report.enrollmentMin;
+             }).length;
             
-        }
-        
-        for (var i = 0, len = account.values.length; i < len; i++) {
-            
-            _.each(config.reportOptions, function(option) {
+            for (var i = 0, len = subsubCourses.length; i < len; i++) {
                 
-                var pctLabel = option + '_pct';
-                
-                if (account.values[i].enrollment && account.values[i].enrollment >= config.reportEnrollmentMin) {
+                _.each(config.report.options, function(option) {
                     
-                    if (rollup[option]) {
+                    var pctLabel = option + '_pct';
+                    
+                    if (subsubCourses[i].enrollment && subsubCourses[i].enrollment >= config.report.enrollmentMin) {
                         
-                        rollup[option] += account.values[i][option];
-                        
-                    } else {
-                        
-                        rollup[option] = account.values[i][option];
+                        if (rollup[option]) {
+                            
+                            rollup[option] += subsubCourses[i][option];
+                            
+                        } else {
+                            
+                            rollup[option] = subsubCourses[i][option];
+                            
+                        }
                         
                     }
                     
                     if (option === 'published' || option === 'homepage' || option === 'syllabus') {
                         
                         if (rollup[option] === 0) {
-
+                            
                             rollup[pctLabel] = 0;
-
+                            
                         } else {
                             
-                            rollup[pctLabel] = getPercent(rollup[option], rollup.course_count);
+                            rollup[pctLabel] = getPercent(rollup[option], rollup.course_count_enrollment_min);
                             
                         }
                         
                     }
                     
-                }
+                });
                 
-            });
-            
-            _.each(config.reportTabs, function(option) {
-               
-                var label = getTabLabel(option);
+                _.each(config.report.tabs, function(tab) {
+                    
+                var label = getTabLabel(tab);
                 var pctLabel = label + '_pct';
                 
-                if (account.value[i].enrollment && account.values[i].enrollment >= config.reportEnrollmentMin) {
+                if (subsubCourses[i].enrollment && subsubCourses[i].enrollment >= config.report.enrollmentMin) {
                     
                     if (rollup[label]) {
                         
-                        rollup[label] += dept.values[i][label];
+                        rollup[label] += subsubCourses[i][label];
                         
                     } else {
                         
-                        rollup[label] = dept.values[i][label];
+                        rollup[label] = subsubCourses[i][label];
                         
                     }
                     
@@ -409,15 +213,126 @@ function countBySubAccount(courses) {
                         
                     } else {
                         
-                        rollup[pctLabel] = getPercent(rollup[label], rollup.course_count);
+                        rollup[pctLabel] = getPercent(rollup[label], rollup.course_count_enrollment_min);
                         
                     }
+                    
                 }
+                    
+                });
                 
-            });
+            }
+            
+        });
+        
+        // Only add subaccount rollups if there is at least one course...    
+        if (rollup.course_count > 0) {
+    
+            output.push(rollup);
+    
         }
         
-        output.push(rollup);
+    });
+    
+    return output;
+    
+}
+
+/**
+ * @function countBySubAccount
+ * Creates a sub-account rollup for courses. 
+ * @param {object} courses - the collection of course objects to act on
+ * @returns {object} - the sub-account sorted course information
+ */ 
+function countBySubaccount(courses) {
+    
+    var accountNest = collection.nest()
+        .key(function(d) { return d.account_id; })
+        .entries(courses);
+        
+    var output = [];
+    
+    _.each(accountNest, function(subaccount) {
+        
+        var rollup = {
+            term: term,
+            account_id: subaccount.key,
+            account_name: getAccountName(parseInt(subaccount.key)),
+            course_count: subaccount.values.length,
+            course_count_enrollment_min: _.filter(subaccount.values, function(val) {
+                    return val.enrollment >= config.report.enrollmentMin;
+                }).length,
+            course_count_published: _.filter(
+                _.filter(subaccount.values, function(val) {
+                    return val.enrollment >= config.report.enrollmentMin;
+                }), function(val) {
+                return val.published > 0;
+            }).length,
+        };
+        
+        _.each(config.report.options, function(option) {
+            
+            var pctLabel = option + '_pct';
+            
+            rollup[option] = 0;
+            
+            for (var i = 0, len = subaccount.values.length; i < len; i++) {
+                
+                if (subaccount.values[i].enrollment && subaccount.values[i].enrollment >= config.report.enrollmentMin && subaccount.values[i].published > 0) {
+                    
+                    rollup[option] += subaccount.values[i][option];
+                    
+                } 
+                
+            }
+            
+            if (rollup[option] > 0) {
+                
+                if (option === 'published') {
+                    
+                    rollup[pctLabel] = getPercent(rollup.published, rollup.course_count_enrollment_min);
+                    
+                } else if (option !== 'enrollment') {
+                    
+                    rollup[pctLabel] = getPercent(rollup[option], rollup.course_count_published);
+                    
+                }
+                
+            }
+            
+        });
+        
+        _.each(config.report.tabs, function(tab) {
+           
+           var label = getTabLabel(tab);
+           var pctLabel = label + '_pct';
+           
+           rollup[label] = 0;
+           
+           for (var i = 0, len = subaccount.values.length; i < len; i++) {
+                
+                if (subaccount.values[i].enrollment && subaccount.values[i].enrollment >= config.report.enrollmentMin && subaccount.values[i].published > 0) {
+                    
+                    rollup[label] += subaccount.values[i][label];
+                    
+                } 
+                
+            }
+            
+            if (rollup[label] > 0) {
+                
+                rollup[pctLabel] = getPercent(rollup[label], rollup.course_count_published);
+                
+            }
+            
+        });
+    
+        // Only add subaccount rollups if there is at least one course...    
+        if (rollup.course_count > 0) {
+    
+            output.push(rollup);
+    
+        }
         
     });
     
@@ -429,23 +344,87 @@ function countBySubAccount(courses) {
 /**
  * @function createReport
  * Writes a CSV report to the file system.
- * @param {string} type - the type of report to create
  * @param {object} courses - the collection of course objects to convert to CSV
  */
-function createReport(type, courses) {
+function createReport(courses) {
     
-    var outfile = config.reportFolder + type + '_report_' + term + '.csv'; 
-    
-    var unparsed = csv.unparse({
-        fields: setCsvFields(type), 
-        data: processData(type, courses)
-    });
+    _.each(config.report.output, function(type) {
         
-    if (!fs.existsSync(config.reportFolder)) {
-        fs.mkdirSync(config.reportFolder);
-    }
+        var outfile = config.report.dir + type + '_report_' + term + timestamp + '.csv';
+        var unparsed = csv.unparse({
+            fields: setCsvFields(type), 
+            data: processData(type, courses)
+        });
+        
+        if (type === 'institution' && !config.canvas.subaccountRecursion) {
+            return false;
+        }
+        
+        writeMessage("\nPreparing " + type + " report....\n");
+        
+        if (!fs.existsSync(config.report.dir)) {
+            fs.mkdirSync(config.report.dir);
+        }
+        
+        writeReport(outfile, unparsed);
+        
+        writeMessage('  ' + term + ' report written to file: ' + outfile + '\n');
+        
+    });
     
-    writeReport(outfile, unparsed);
+}
+
+
+/**
+ * @function getAccountList
+ * Retrieves recursive list of Canvas accounts and sub-accounts.
+ * @param {string} url - the request URL
+ * @param {function} callback - an optional callback
+ */
+function getAccountList(url, callback) {
+    
+    canvasApiRequest(url, function(args) {
+        
+        args.body.forEach(function(result) {
+            
+            accounts.push({
+                "name": result.name,
+                "id": result.id,
+                "parent_account_id": result.parent_account_id,
+                "sis_account_id": result.sis_account_id,
+                "workflow_state": result.workflow_state
+            });
+            
+        });
+        
+        fs.writeFileSync('./accounts.json', JSON.stringify(accounts));
+        
+        if (callback && typeof callback === 'function') {
+            callback.call(undefined, args);
+        }
+        
+    });
+    
+}
+
+
+/**
+ * @function getAccountName
+ * Provides the name that corresponds to a subaccount ID.
+ * @param {number} id - the subaccount identifier
+ * @returns {string} - the subaccount name
+ */
+function getAccountName(id) {
+    
+    var accountInfo = _.where(accounts, {id: id});
+    
+    // Courses may be in the top-level institutional account,
+    // not a sub-account, so we need to handle both situations
+    if (accountInfo.length > 0) {
+        return accountInfo[0].name;
+    } else {
+        return config.institution;
+    }
     
 }
 
@@ -457,25 +436,34 @@ function createReport(type, courses) {
  */
 function getCourseDetails() {
     
-    writeMessage('Fetching course details. Please be patient.\n');
+    var throttled = _.throttle(getTimeRemaining, 60000, {trailing: false});
+    
+    writeMessage('\nFetching course details...');
+    
+    if (!_.contains(config.report.options, "homepage") && !_.contains(config.report.options, "syllabus") && !_.contains(config.report.options, "enrollment") && config.report.tabs.length === 0) {
+
+        writeMessage("\n  No options require additional course details.");
+        
+        createReport(courses);
+        
+        return false;
+    }
     
     _.each(courses, function(course, idx) {
         
         var url = getEndpoint('course').replace(/:course_id/, course.id);
         
         // Timeout to avoid hitting the rate limit for successive Canvas API calls
-        setTimeout(function() {
-            
-            if (idx % 250 === 0) {
-                getTimeRemaining(idx);
-            }
+        var timeout = setTimeout(function() {
+
+            throttled.call(undefined, idx);
                                     
             canvasApiRequest(url, function(args) {
 
                 if (args.isComplete) {
                     
                     // Act on each report option
-                    _.each(config.reportOptions, function(option) {
+                    _.each(config.report.options, function(option) {
                         
                         if (option === 'syllabus') {
                             
@@ -492,10 +480,10 @@ function getCourseDetails() {
                         
                     });
                     
-                    _.each(config.reportTabs, function(option) {
+                    _.each(config.report.tabs, function(tab) {
                         
-                        var label = getTabLabel(option);
-                        var tab = _.where(args.body.tabs, {label: option});
+                        var label = getTabLabel(tab);
+                        var tab = _.where(args.body.tabs, {label: tab});
                         
                         courses[idx][label] = 0;
                         
@@ -511,20 +499,24 @@ function getCourseDetails() {
                 
                 if (idx === courses.length - 1) {
                     
-                    writeMessage("Processing reports...\n");
+                    writeMessage("\n  Done.\n");
                     
                     // A hack, but without it occasionally the final 
                     // course details don't make it into the report
                     _.delay(function() {
-                        _.each(config.reportTypes, function(type) {
-                            createReport(type, courses);
-                        });
+
+                        createReport(courses);
+
                     }, 1000);
                 }
 
             });
             
-        }, config.canvas.requestInterval * idx);    // May not need this long a delay, but this works OK 
+        }, 
+        
+        // requestInterval defaults to 100ms, which may be unnecessarily long.
+        // Value can be modified in config.json.
+        config.requestInterval * idx);
         
     });
     
@@ -543,19 +535,17 @@ function getCourseList(url, callback) {
         
         args.body.forEach(function(result) {
             
-            var dept = getDeptInfo(result.account_id);
-            
             var courseObj = {
                 id: result.id,
                 account_id: result.account_id,
-                division: dept.division,
-                program: dept.name,
+                account_name: getAccountName(result.account_id),
                 name: result.name,
                 course_code: result.course_code,
                 term: term
             };
             
-            if (_.contains(config.reportOptions, 'published')) {
+            
+            if (_.contains(config.report.options, 'published')) {
                 if (result.workflow_state === 'available') {
                     courseObj.published = 1;
                 } else {
@@ -563,7 +553,7 @@ function getCourseList(url, callback) {
                 }
             }
             
-            if (_.contains(config.reportOptions, 'homepage')) {
+            if (_.contains(config.report.options, 'homepage')) {
                 if (result.default_view === 'wiki') {
                     courseObj.homepage = 1;
                 } else {
@@ -571,9 +561,7 @@ function getCourseList(url, callback) {
                 }
             }
 
-            if (courseObj.division !== null && courseObj.program !== null) {
-                courses.push(courseObj);                
-            }
+            courses.push(courseObj); 
             
         });
         
@@ -582,30 +570,6 @@ function getCourseList(url, callback) {
         }
         
     });
-    
-}
-
-
-/**
- * @function getDeptInfo
- * Looks up department and division names from Canvas account id
- * @param {number} id - Canvas account or sub-account id
- * @returns {object} - object containing name of department and division
- */
-function getDeptInfo(id) {
-    
-    var dept = _.where(depts.departments, { id: id });
-    var output = {
-        name: '',
-        division: ''
-    }
-    
-    if (dept.length > 0) {
-        output.name = dept[0].code;
-        output.division = dept[0].division;
-    }
-
-    return output;
     
 }
 
@@ -623,6 +587,15 @@ function getEndpoint(type) {
     
     switch(type) {
         
+        case 'accounts':
+            endpoint += '/api/v1/accounts/' + account + '/sub_accounts?per_page=' + config.canvas.perPage;
+            
+            if (config.canvas.subaccountRecursion) {
+                endpoint += '&recursive=true';
+            }
+            
+            break;
+        
         case 'courses':
             endpoint += '/api/v1/accounts/' + account + '/courses?per_page=' + config.canvas.perPage + '&enrollment_term_id=' + termId;
             break;
@@ -630,15 +603,15 @@ function getEndpoint(type) {
         case 'course':
             endpoint += '/api/v1/courses/:course_id?per_page=' + config.canvas.perPage;
             
-            if (_.contains(config.reportOptions, 'syllabus')) {
+            if (_.contains(config.report.options, 'syllabus')) {
                 endpoint += '&include[]=syllabus_body';
             }
             
-            if (_.contains(config.reportOptions, 'enrollment')) {
+            if (_.contains(config.report.options, 'enrollment')) {
                 endpoint += '&include[]=total_students';
             }
             
-            if (config.reportTabs.length > 0) {
+            if (config.report.tabs.length > 0) {
                 endpoint += '&include[]=tabs';
             }
             
@@ -693,11 +666,21 @@ function getNextLink(links) {
  * Calculates a percentage with the significant figures specified in config file
  * @param {number} num - numerator
  * @param {number} denom - denominator
- * @returns {number} percent - the calculated percentage
+ * @returns {number|string} percent - the calculated percentage
  */
 function getPercent(num, denom) {
     
-    var percent = (num / denom).toPrecision(config.reportPctPrecision);
+    var percent;
+    
+    if (denom === 0) {
+        
+        percent = '';
+        
+    } else {
+            
+        percent = (num / denom).toPrecision(config.report.pctPrecision);
+        
+    }
     
     return percent;
     
@@ -743,15 +726,21 @@ function getTermId(callback) {
 }
 
 
+/*
+ * @function getTimeRemaining
+ * Provides a rough estimate of how much time is remaining
+ * before reports are created.
+ * @param {number} idx - the index of the course currently being processed
+ */
 function getTimeRemaining(idx) {
     
-    var timeRemaining = Math.round(Math.ceil(courses.length - idx) * config.canvas.requestInterval / 1000);
+    var timeRemaining = Math.round(Math.ceil(courses.length - idx) * config.requestInterval / 1000);
     var message;
 
     if (timeRemaining > 60) {
-        message =  '  ' + Math.round(timeRemaining / 60) + ' minute(s) remaining...\n';
+        message =  '\n  ' + Math.round(timeRemaining / 60) + ' minute(s) remaining...';
     } else {
-        message = '  ' + timeRemaining + ' seconds remaining...\n';
+        message = '\n  Less than 1 minute remaining...';
     }
     
     if (timeRemaining >= 10) {
@@ -759,6 +748,103 @@ function getTimeRemaining(idx) {
     }
     
 }
+
+
+/**
+ * @function getTimestamp
+ * @returns {string} - a timestamp
+ */
+function getTimestamp() {
+    
+    var date = new Date;
+    var day;
+    var month;
+    var year;
+    var output = '';
+    
+    year = date.getFullYear();
+    
+    month = date.getMonth() + 1;
+    
+    day = date.getDate();
+    
+    if (month < 10) {
+        month = '0' + month.toString();
+    }
+    
+    if (day < 10) {
+        day = '0' + day.toString();
+    }
+    
+    return year + '-' + month + '-' + day;
+    
+}
+
+/**
+ * @function init
+ * Initializes report process.
+ */
+function init() {
+    
+    // If term has been set
+    if (term !== null) {
+      
+        // No local account list exists, so we need to create one
+        if (!fs.existsSync('./accounts.json')) {
+            
+            writeMessage("\nCreating sub-account list");
+            
+            getAccountList(getEndpoint('accounts'), function(args) {
+                
+                if (args.isComplete) {
+                    
+                    writeMessage("\n  Sub-account list created and saved to ./accounts.json.\n");
+
+                    init();
+                    
+                }
+                
+            });
+            
+        } else {
+            
+            // Account list already exists, so we just need to require it
+            accounts = require('./accounts.json');
+            
+            getTermId(function() {
+                
+                writeMessage('\nFetching course list for ' + term + '...');
+                
+                getCourseList(getEndpoint('courses'), function(args) {
+                    
+                    if (args.isComplete) {
+                        
+                        writeMessage('\n  Done.\n');
+                        
+                        if (args.isComplete) {
+                            
+                            getCourseDetails();
+                            
+                        }
+                    }
+                    
+                });
+                
+            });
+            
+        }
+        
+    } else {
+        
+        // This should set the term based on user input
+        checkArgs(cliArgs);
+        
+        init();
+        
+    }
+    
+}
+
 
 /**
  * @function processData
@@ -770,24 +856,16 @@ function processData(type, courses) {
     
     if (type === 'courses') {
         
-        return sortCourses(courses);
+        return _.sortBy(courses, 'account_name');
         
-    } else if (type === 'departments') {
+    } else if (type === 'subaccounts') {
         
-        if (depts.departments) {
-                    
-            return sortCourses(countByDept(courses));
-            
-        } else {
-            
-            console.log('No department list!');
-            
-            return sortCourses(countBySubAccount(courses));
-        }
+        return _.sortBy(countBySubaccount(courses), 'account_name');
         
-    } else if (type === 'divisions') {
+    } else if (type === 'institution') {
         
-        return sortCourses(countByDiv(courses));
+        return _.sortBy(countByInstitution(courses), 'account_name');
+        
     }
 
 }
@@ -805,28 +883,15 @@ function setCsvFields(type) {
     
     if (type === 'courses') {
         
-        fields.push('account_id', 'term', 'id', 'division', 'program', 'course_code', 'name');
+        fields.push('account_id', 'account_name', 'term', 'id',  'course_code', 'name');
     
-    } else if (type === 'departments') {
+    } else if (type === 'subaccounts' || type === 'institution') {
         
-        if (depts.departments) {
-
-            fields.push('term', 'division', 'program', 'course_count');
-            
-        } else {
-         
-            fields.push('term', 'account_id', 'division', 'course_count');
-            
-        }
-
-
-    } else if (type === 'divisions') {
+        fields.push('term', 'account_id', 'account_name', 'course_count', 'course_count_enrollment_min');
         
-        fields.push('term', 'division', 'course_count');
-        
-    }
+    } 
     
-    _.each(config.reportOptions, function(option) {
+    _.each(config.report.options, function(option) {
         
         var pctLabel = option + '_pct';
         
@@ -842,7 +907,7 @@ function setCsvFields(type) {
         
     });
     
-    _.each(config.reportTabs, function(option) {
+    _.each(config.report.tabs, function(option) {
         
         var label = getTabLabel(option);
         var pctLabel = label + '_pct';
@@ -857,23 +922,6 @@ function setCsvFields(type) {
 
     
     return fields;
-    
-}
-
-
-/**
- * @function sortCourses
- * Does what it says -- sorts courses by program and division
- * @param {object} courses - the collection of courses to sort
- * @returns {object} - the sorted collection
- */
-function sortCourses(courses) { 
-    
-    if (depts.departments) {
-        return _.sortBy(_.sortBy(courses, 'program'), 'division');   
-    } else {
-        return _.sortBy(_.sortBy(courses, 'account_id'));
-    }
     
 }
 
@@ -901,35 +949,16 @@ function writeReport(file, data) {
     fs.writeFile(file, data, 'utf8', function(error) {
        
        if (error) {
-           console.log(error);
+           console.log("DEBUG --> ", error);
            throw(error);
        }
-       
-       writeMessage('  ' + term + ' report written to file: ' + file + '\n');
         
     });
     
 }
 
 
-checkArgs(cliArgs);
 
-if (term !== null) {
-    
-    getTermId(function() {
-        
-        writeMessage('Fetching course list for ' + term + '. Please be patient.\n');
-        
-        getCourseList(getEndpoint('courses'), function(args) {
-             
-            if (args.isComplete) {
-                
-                getCourseDetails();
+// Do report stuff...
 
-            } 
-            
-        });
-        
-    });
-    
-}
+init();
