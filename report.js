@@ -144,6 +144,32 @@ function countByInstitution(courses) {
             course_count_enrollment_min: 0
         };
         
+        _.each(sub.values, function(subsub) {
+            
+            var subsubCourses = _.where(courses, {account_id: subsub.id});
+            
+            rollup.course_count += subsubCourses.length;
+            
+            rollup.course_count_enrollment_min += _.filter(subsubCourses, function(val) {
+                return val.enrollment >= config.report.enrollmentMin;
+             }).length;
+             
+             for (var i = 0, len = subsubCourses.length; i < len; i++) {
+                 
+                if (subsubCourses[i].enrollment && subsubCourses[i].enrollment >= config.report.enrollmentMin) {
+                    
+                    if (rollup.published) {
+                        rollup.published += subsubCourses[i].published;
+                    } else {
+                        rollup.published = subsubCourses[i].published;
+                    }
+                    
+                }
+                 
+             }
+            
+        });
+        
         _.each(sub.values, function(subsub) {  // equivalent to department/program
            
             var subsubCourses = _.where(courses, {account_id: subsub.id});
@@ -153,6 +179,7 @@ function countByInstitution(courses) {
             rollup.course_count_enrollment_min += _.filter(subsubCourses, function(val) {
                 return val.enrollment >= config.report.enrollmentMin;
              }).length;
+             
             
             for (var i = 0, len = subsubCourses.length; i < len; i++) {
                 
@@ -182,7 +209,11 @@ function countByInstitution(courses) {
                             
                         } else {
                             
-                            rollup[pctLabel] = getPercent(rollup[option], rollup.course_count_enrollment_min);
+                            if (option === 'published') {
+                                rollup[pctLabel] = getPercent(rollup[option], rollup.course_count_enrollment_min);
+                            } else {
+                                rollup[pctLabel] = getPercent(rollup[option], rollup.published);
+                            }
                             
                         }
                         
@@ -194,6 +225,7 @@ function countByInstitution(courses) {
                     
                 var label = getTabLabel(tab);
                 var pctLabel = label + '_pct';
+                
                 
                 if (subsubCourses[i].enrollment && subsubCourses[i].enrollment >= config.report.enrollmentMin) {
                     
@@ -213,7 +245,7 @@ function countByInstitution(courses) {
                         
                     } else {
                         
-                        rollup[pctLabel] = getPercent(rollup[label], rollup.course_count_enrollment_min);
+                        rollup[pctLabel] = getPercent(rollup[label], rollup.published);
                         
                     }
                     
@@ -298,6 +330,10 @@ function countBySubaccount(courses) {
                     
                 }
                 
+            } else if (rollup[option] === 0 && option === 'published') {
+                
+                rollup[pctLabel] = 0;
+                
             }
             
         });
@@ -324,6 +360,7 @@ function countBySubaccount(courses) {
                 rollup[pctLabel] = getPercent(rollup[label], rollup.course_count_published);
                 
             }
+            
             
         });
     
@@ -418,13 +455,11 @@ function getAccountName(id) {
     
     var accountInfo = _.where(accounts, {id: id});
     
-    // Courses may be in the top-level institutional account,
-    // not a sub-account, so we need to handle both situations
     if (accountInfo.length > 0) {
         return accountInfo[0].name;
     } else {
         return config.institution;
-    }
+    } 
     
 }
 
