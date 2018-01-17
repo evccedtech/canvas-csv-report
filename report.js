@@ -12,6 +12,7 @@ var requestSequence = ['termId', 'courses'];
 var term = null;
 var termId = null;
 var timestamp = '';
+var verbose = false;
 var year = null;
 
 // Command-line arguments
@@ -111,7 +112,17 @@ function checkArgs(cliArgs) {
         
     } else {
         
-        writeMessage('Whoa! Only one argument required: an academic quarter (i.e. "F16", "SU14", "W15")');
+        if (cliArgs[1] === '--verbose' && /^[FSWUu]{1,2}[0-9]{2}/.test(cliArgs[0])) {
+        
+            verbose = true;
+            term = cliArgs[0];
+            
+        } else {
+            
+            writeMessage('Whoa! Something is wrong with the supplied arguments. Check the documentation and try again.');
+        
+        }
+        
     }
         
 }
@@ -597,6 +608,10 @@ function getCourseList(url, callback) {
             }
 
             courses.push(courseObj); 
+            
+            if (verbose) {
+                writeMessage('\n getCourseList --> ' + JSON.stringify(courseObj));
+            }
             
         });
         
