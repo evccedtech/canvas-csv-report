@@ -313,6 +313,12 @@ function countBySubaccount(courses) {
             }).length,
         };
         
+        if (verbose) {
+            writeMessage('\n\r\n\r DEBUG: countBySubaccount --> ' + rollup.account_name);
+            writeMessage('\n\r DEBUG: countBySubaccount --> ' + rollup.course_count_published + ' courses in this account are published.');
+            writeMessage('\n\r DEBUG: countBySubaccount --> ' + rollup.course_count_enrollment_min + ' courses in this account have enrollment >= ' + config.report.enrollmentMin);
+        }
+        
         _.each(config.report.options, function(option) {
             
             var pctLabel = option + '_pct';
@@ -327,24 +333,27 @@ function countBySubaccount(courses) {
                     
                 } 
                 
-            }
-            
-            if (rollup[option] > 0) {
-                
-                if (option === 'published') {
-                    
-                    rollup[pctLabel] = getPercent(rollup.published, rollup.course_count_enrollment_min);
-                    
-                } else if (option !== 'enrollment') {
-                    
-                    rollup[pctLabel] = getPercent(rollup[option], rollup.course_count_published);
-                    
+                if (i === len - 1) {
+                    if (verbose) {
+                        writeMessage('\n\r DEBUG: countBySubaccount --> ' + option + ' set to ' + rollup[option]);
+                    }   
                 }
                 
-            } else if (rollup[option] === 0 && option === 'published') {
+            }
+            
+            if (option === 'published') {
                 
-                rollup[pctLabel] = 0;
+                rollup[pctLabel] = getPercent(rollup.published, rollup.course_count_enrollment_min);
                 
+            } else if (option !== 'enrollment') {
+                
+                rollup[pctLabel] = getPercent(rollup[option], rollup.course_count_published);
+                
+            }
+
+            
+            if (verbose) {
+                writeMessage('\n\r DEBUG: countBySubaccount --> ' + pctLabel + ' for account set to ' + rollup[pctLabel]);
             }
             
         });
@@ -498,15 +507,20 @@ function getCourseDetails() {
     _.each(courses, function(course, idx) {
         
         var url = getEndpoint('course').replace(/:course_id/, course.id);
+       
         
         // Timeout to avoid hitting the rate limit for successive Canvas API calls
         var timeout = setTimeout(function() {
 
             throttled.call(undefined, idx);
-                                    
+
             canvasApiRequest(url, function(args) {
 
                 if (args.isComplete) {
+                    
+                    if (verbose) {
+                        writeMessage('\n\r\n\r DEBUG: getCourseDetails --> API request for ' + courses[idx].name + ' complete.');
+                    }
                     
                     // Act on each report option
                     _.each(config.report.options, function(option) {
@@ -518,10 +532,15 @@ function getCourseDetails() {
                             } else {
                                 courses[idx].syllabus = 0;
                             }
+
                         }
                         
                         if (option === 'enrollment') {
                             courses[idx].enrollment = args.body.total_students;
+                        }
+                        
+                        if (verbose) {
+                            writeMessage('\n\r DEBUG: getCourseDetails --> ' + option + ' for ' + courses[idx].name + ' set to ' + courses[idx][option]);
                         }
                         
                     });
@@ -537,6 +556,10 @@ function getCourseDetails() {
                             if (tab[0].visibility === 'public' && !tab[0].hasOwnProperty('hidden')) {
                                 courses[idx][label] = 1;
                             }
+                        }
+                        
+                        if (verbose) {
+                            writeMessage('\n\r DEBUG: getCourseDetails --> ' + label.toLowerCase() + ' for ' + courses[idx].name + ' set to ' + courses[idx][label]);
                         }
                         
                     });
@@ -610,7 +633,7 @@ function getCourseList(url, callback) {
             courses.push(courseObj); 
             
             if (verbose) {
-                writeMessage('\n getCourseList --> ' + JSON.stringify(courseObj));
+                writeMessage('\n\r DEBUG: getCourseList --> \n    ' + JSON.stringify(courseObj));
             }
             
         });
@@ -720,16 +743,28 @@ function getNextLink(links) {
  */
 function getPercent(num, denom) {
     
+    if (verbose) {
+        writeMessage('\n\r DEBUG: getPercent --> calculating percent for num = ' + num + ', denom = ' + denom);
+    }
+    
     var percent;
     
     if (denom === 0) {
         
         percent = '';
         
+    } else if (num === 0) {
+        
+        percent = 0;
+        
     } else {
             
         percent = (num / denom).toPrecision(config.report.pctPrecision);
         
+    }
+    
+    if (verbose) {
+        writeMessage('\n\r DEBUG: getPercent --> returning value of ' + percent);
     }
     
     return percent;
